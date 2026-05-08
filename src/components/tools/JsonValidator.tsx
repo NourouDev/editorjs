@@ -1,9 +1,6 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { createJsonWorker } from "~/lib/jsonWorker";
-import { clientOnly } from "@solidjs/start";
-import { CheckIcon, XIcon } from "~/components/SvgIcons";
-
-const MonacoEditorClient = clientOnly(() => import("../MonacoEditor"));
+import CodeMirrorEditor from "../CodeMirrorEditor";
 
 export default function JsonValidator() {
   const [jsonInput, setJsonInput] = createSignal('{\n  "hello": "world"\n}');
@@ -99,11 +96,10 @@ export default function JsonValidator() {
         </div>
       </div>
 
-      <div class="h-[500px] bg-white rounded-xl overflow-hidden border border-slate-200">
-        <MonacoEditorClient
+      <div class="h-[500px] rounded-xl overflow-hidden border border-slate-700 border-t-0">
+        <CodeMirrorEditor
           value={jsonInput()}
           onChange={setJsonInput}
-          language="json"
         />
       </div>
     </div>

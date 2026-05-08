@@ -1,9 +1,7 @@
 import { createSignal, Show, For, createMemo, onCleanup, onMount } from "solid-js";
-import { clientOnly } from "@solidjs/start";
 import { createJsonWorker } from "~/lib/jsonWorker";
-import { CheckIcon, XIcon, CopyIcon } from "~/components/SvgIcons";
-
-const MonacoEditorClient = clientOnly(() => import("../MonacoEditor"));
+import { CopyIcon } from "~/components/SvgIcons";
+import CodeMirrorEditor from "../CodeMirrorEditor";
 
 type ViewMode = "split" | "diff";
 
@@ -227,7 +225,7 @@ export default function JsonFormatter() {
               <span class="text-sm font-medium text-slate-300">Original</span>
             </div>
             <div class="h-[450px] rounded-b-xl overflow-hidden border border-slate-700 border-t-0">
-              <MonacoEditorClient value={originalInput()} onChange={setOriginalInput} language="json" />
+              <CodeMirrorEditor value={originalInput()} onChange={setOriginalInput} />
             </div>
           </div>
 
@@ -236,10 +234,9 @@ export default function JsonFormatter() {
               <span class="text-sm font-medium text-slate-300">Formatted</span>
             </div>
             <div class="h-[450px] rounded-b-xl overflow-hidden border border-slate-700 border-t-0">
-              <MonacoEditorClient
+              <CodeMirrorEditor
                 value={formattedOutput() || "// Click Format"}
                 onChange={() => {}}
-                language="json"
               />
             </div>
           </div>
