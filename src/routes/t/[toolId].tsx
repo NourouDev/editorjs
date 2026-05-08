@@ -2,6 +2,7 @@ import { useParams } from "@solidjs/router";
 import { Show, Switch, Match } from "solid-js";
 import { TOOLS_REGISTRY } from "~/config/tools.config";
 import JsonValidator from "~/components/tools/JsonValidator";
+import JsonFormatter from "~/components/tools/JsonFormatter";
 import { Title } from "@solidjs/meta";
 
 export default function ToolPage() {
@@ -23,8 +24,8 @@ export default function ToolPage() {
         }
       >
         <Title>{tool().name} - ZeroJSON Tools</Title>
-        <header class="mb-10">
-          <div class="flex items-center gap-4 mb-4">
+        <header class="mb-8">
+          <div class="flex items-center gap-4 mb-3">
             <span class="text-4xl">{tool().icon}</span>
             <h1 class="text-3xl font-extrabold text-slate-900">{tool().name}</h1>
           </div>
@@ -34,7 +35,10 @@ export default function ToolPage() {
         </header>
 
         <Switch>
-          <Match when={params.toolId === "json-validator" || params.toolId === "json-formatter"}>
+          <Match when={params.toolId === "json-formatter"}>
+            <JsonFormatter />
+          </Match>
+          <Match when={params.toolId === "json-validator"}>
             <JsonValidator />
           </Match>
           <Match when={true}>

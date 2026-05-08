@@ -31,6 +31,8 @@ interface MonacoEditorProps {
   value: string;
   onChange: (value: string) => void;
   language?: string;
+  readOnly?: boolean;
+  theme?: string;
 }
 
 export default function MonacoEditor(props: MonacoEditorProps) {
@@ -42,14 +44,22 @@ export default function MonacoEditor(props: MonacoEditorProps) {
       editor = monaco.editor.create(editorRef, {
         value: props.value,
         language: props.language || 'json',
-        theme: 'vs-light',
+        theme: props.theme || 'vs-dark',
         automaticLayout: true,
         minimap: { enabled: false },
-        fontSize: 14,
+        fontSize: 13,
+        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+        fontLigatures: true,
         scrollBeyondLastLine: false,
         lineNumbers: 'on',
         renderLineHighlight: 'all',
         tabSize: 2,
+        readOnly: props.readOnly || false,
+        padding: { top: 12, bottom: 12 },
+        smoothScrolling: true,
+        cursorBlinking: 'smooth',
+        cursorSmoothCaretAnimation: 'on',
+        bracketPairColorization: { enabled: true },
       });
 
       editor.onDidChangeModelContent(() => {
@@ -75,7 +85,7 @@ export default function MonacoEditor(props: MonacoEditorProps) {
   return (
     <div 
       ref={editorRef} 
-      class="w-full h-full min-h-[500px] border border-slate-200 rounded-lg overflow-hidden"
+      class="w-full h-full min-h-[300px]"
     />
   );
 }
