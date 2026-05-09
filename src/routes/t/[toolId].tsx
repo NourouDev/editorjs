@@ -25,9 +25,9 @@ export default function ToolPage() {
         when={tool()}
         fallback={
           <div class="text-center py-20">
-            <h1 class="text-2xl font-bold text-slate-900">Tool not found</h1>
-            <p class="mt-4 text-slate-600">The tool you are looking for does not exist.</p>
-            <a href="/" class="mt-8 inline-block text-indigo-600 font-medium hover:underline">
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Tool not found</h1>
+            <p class="mt-4 text-slate-600 dark:text-slate-400">The tool you are looking for does not exist.</p>
+            <a href="/" class="mt-8 inline-block text-indigo-600 dark:text-indigo-400 font-medium hover:underline">
               Go back home
             </a>
           </div>
@@ -36,12 +36,12 @@ export default function ToolPage() {
         <Title>{tool().name} - ZeroJSON Tools</Title>
         <header class="mb-6">
           <div class="flex items-center gap-3 mb-2">
-            <div class="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+            <div class="w-10 h-10 bg-indigo-50 dark:bg-indigo-950 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400">
               <IconComponent />
             </div>
-            <h1 class="text-2xl font-bold text-slate-900">{tool().name}</h1>
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-white">{tool().name}</h1>
           </div>
-          <p class="text-slate-600 max-w-2xl">
+          <p class="text-slate-600 dark:text-slate-400 max-w-2xl">
             {tool().description}
           </p>
         </header>
@@ -54,16 +54,16 @@ export default function ToolPage() {
             <JsonValidator />
           </Match>
           <Match when={true}>
-            <div class="p-12 bg-white rounded-xl border border-slate-200 text-center">
-              <p class="text-slate-500">Tool coming soon...</p>
+            <div class="p-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+              <p class="text-slate-500 dark:text-slate-400">Tool coming soon...</p>
             </div>
           </Match>
         </Switch>
 
         {/* Ethical Ad Placeholder */}
-        <div class="mt-8 p-6 bg-slate-100 rounded-xl border border-slate-200 text-center">
-          <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Advertisement</p>
-          <p class="text-slate-500 text-sm">Ad space - Privacy-respecting ads only</p>
+        <div class="mt-8 p-6 bg-slate-100 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+          <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Advertisement</p>
+          <p class="text-slate-500 dark:text-slate-400 text-sm">Ad space - Privacy-respecting ads only</p>
         </div>
       </Show>
     </div>

@@ -1,6 +1,8 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { createJsonWorker } from "~/lib/jsonWorker";
 import CodeMirrorEditor from "../CodeMirrorEditor";
+import { CheckIcon, XIcon } from "~/components/SvgIcons";
+import { isDarkMode } from "~/lib/theme";
 
 export default function JsonValidator() {
   const [jsonInput, setJsonInput] = createSignal('{\n  "hello": "world"\n}');
@@ -74,32 +76,33 @@ export default function JsonValidator() {
           <button
             onClick={handleFormat}
             disabled={isProcessing()}
-            class="px-6 py-2.5 bg-white text-slate-700 border border-slate-300 font-medium rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            class="px-6 py-2.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
           >
             Format
           </button>
         </div>
         <div class="flex items-center gap-2">
           {status().type === 'success' && (
-            <span class="text-green-600"><CheckIcon /></span>
+            <span class="text-green-600 dark:text-green-400"><CheckIcon /></span>
           )}
           {status().type === 'error' && (
-            <span class="text-red-600"><XIcon /></span>
+            <span class="text-red-600 dark:text-red-400"><XIcon /></span>
           )}
           <span class={`text-sm font-medium ${
-            status().type === 'success' ? 'text-green-700' :
-            status().type === 'error' ? 'text-red-700' :
-            'text-slate-600'
+            status().type === 'success' ? 'text-green-700 dark:text-green-400' :
+            status().type === 'error' ? 'text-red-700 dark:text-red-400' :
+            'text-slate-600 dark:text-slate-400'
           }`}>
             {status().message}
           </span>
         </div>
       </div>
 
-      <div class="h-[500px] rounded-xl overflow-hidden border border-slate-700 border-t-0">
+      <div class="h-[500px] rounded-xl overflow-hidden border border-slate-700 dark:border-slate-800">
         <CodeMirrorEditor
           value={jsonInput()}
           onChange={setJsonInput}
+          theme={isDarkMode() ? "dark" : "light"}
         />
       </div>
     </div>

@@ -11,10 +11,10 @@ export default function Home() {
   return (
     <div class="py-12">
       <div class="text-center mb-16">
-        <h1 class="text-4xl font-bold text-slate-900 mb-4">
+        <h1 class="text-4xl font-bold text-slate-900 dark:text-white mb-4">
           JSON Tools, Privately.
         </h1>
-        <p class="text-lg text-slate-600 max-w-2xl mx-auto">
+        <p class="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
           Massive payloads? Sensitive data? Everything stays in your browser.
         </p>
       </div>
@@ -26,13 +26,13 @@ export default function Home() {
             return (
               <a
                 href={`/t/${tool.id}`}
-                class="group bg-white p-8 rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-sm transition-colors"
+                class="group bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-600 hover:shadow-sm transition-colors"
               >
-                <div class="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center mb-6 text-indigo-600">
+                <div class="w-12 h-12 bg-indigo-50 dark:bg-indigo-950 rounded-lg flex items-center justify-center mb-6 text-indigo-600 dark:text-indigo-400">
                   <IconComponent />
                 </div>
-                <h2 class="text-lg font-semibold text-slate-900 mb-2">{tool.name}</h2>
-                <p class="text-slate-600 text-sm leading-relaxed">
+                <h2 class="text-lg font-semibold text-slate-900 dark:text-white mb-2">{tool.name}</h2>
+                <p class="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
                   {tool.description}
                 </p>
               </a>
