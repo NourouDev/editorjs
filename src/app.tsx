@@ -1,17 +1,25 @@
 import { Router } from "@solidjs/router";
 import { FileRoutes } from "@solidjs/start/router";
-import { Suspense, onMount } from "solid-js";
+import { createSignal, onMount, Suspense, Show } from "solid-js";
 import { MetaProvider, Title, Meta, Link } from "@solidjs/meta";
 import { isDarkMode, setIsDarkMode } from "./lib/theme";
-import EthicalAds from "./components/layout/EthicalAds";
+import GoogleAdSense from "./components/layout/GoogleAdSense";
+import ConsentBanner from "./components/layout/ConsentBanner";
 import "./app.css";
 
 export default function App() {
+  const [hasConsent, setHasConsent] = createSignal(false);
+
   onMount(() => {
     const stored = localStorage.getItem("zerojson-theme");
     if (stored === "dark") {
       setIsDarkMode(true);
       document.documentElement.classList.add("dark");
+    }
+
+    const consent = localStorage.getItem("zerojson-consent");
+    if (consent === "accepted") {
+      setHasConsent(true);
     }
   });
 
@@ -83,7 +91,10 @@ export default function App() {
             <main class="flex-grow flex flex-col min-h-0">
               <Suspense>{props.children}</Suspense>
             </main>
-            <EthicalAds />
+            <Show when={hasConsent()}>
+              <GoogleAdSense />
+            </Show>
+            <ConsentBanner />
             <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-6 w-full flex-shrink-0">
               <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-slate-500 dark:text-slate-400 text-xs">
                 <p>&copy; {new Date().getFullYear()} ZeroJSON Tools. Privacy First. Performance Always.</p>

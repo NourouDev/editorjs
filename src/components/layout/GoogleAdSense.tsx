@@ -1,20 +1,11 @@
 import { onMount } from 'solid-js';
 
 // IMPORTANT: Replace with your actual AdSense Publisher ID
-const PUBLISHER_ID = 'ca-pub-3447606468251376';
+const PUBLISHER_ID = 'ca-pub-9009321896588169';
 
 export default function GoogleAdSense() {
     onMount(() => {
-        // 1. Inject the AdSense script
-        if (!document.querySelector('script[src*="adsbygoogle.js"]')) {
-            const script = document.createElement('script');
-            script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${PUBLISHER_ID}`;
-            script.async = true;
-            script.crossOrigin = 'anonymous';
-            document.head.appendChild(script);
-        }
-
-        // 2. Initialize the ad unit
+        // Initialize the ad unit if the script is already loaded
         try {
             // @ts-ignore
             (window.adsbygoogle = window.adsbygoogle || []).push({});
