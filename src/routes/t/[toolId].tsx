@@ -2,7 +2,7 @@ import { useParams } from "@solidjs/router";
 import { Show, Switch, Match } from "solid-js";
 import { TOOLS_REGISTRY } from "~/config/tools.config";
 import JsonValidator from "~/components/tools/JsonValidator";
-import JsonFormatter from "~/components/tools/JsonFormatter";
+import JsonEditor from "~/components/tools/JsonEditor";
 import { Title } from "@solidjs/meta";
 import { LockIcon, FormatIcon } from "~/components/SvgIcons";
 
@@ -20,7 +20,7 @@ export default function ToolPage() {
   };
 
   return (
-    <div class="py-6">
+    <div class={`flex-grow flex flex-col ${params.toolId === "json-formatter" ? "" : "p-6 max-w-7xl mx-auto w-full"}`}>
       <Show
         when={tool()}
         fallback={
@@ -34,37 +34,43 @@ export default function ToolPage() {
         }
       >
         <Title>{tool().name} - ZeroJSON Tools</Title>
-        <header class="mb-6">
-          <div class="flex items-center gap-3 mb-2">
-            <div class="w-10 h-10 bg-indigo-50 dark:bg-indigo-950 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-              <IconComponent />
+        <Show when={params.toolId !== "json-formatter"}>
+          <header class="mb-6">
+            <div class="flex items-center gap-3 mb-2">
+              <div class="w-10 h-10 bg-indigo-50 dark:bg-indigo-950 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <IconComponent />
+              </div>
+              <h1 class="text-2xl font-bold text-slate-900 dark:text-white">{tool().name}</h1>
             </div>
-            <h1 class="text-2xl font-bold text-slate-900 dark:text-white">{tool().name}</h1>
-          </div>
-          <p class="text-slate-600 dark:text-slate-400 max-w-2xl">
-            {tool().description}
-          </p>
-        </header>
+            <p class="text-slate-600 dark:text-slate-400 max-w-2xl">
+              {tool().description}
+            </p>
+          </header>
+        </Show>
 
-        <Switch>
-          <Match when={params.toolId === "json-formatter"}>
-            <JsonFormatter />
-          </Match>
-          <Match when={params.toolId === "json-validator"}>
-            <JsonValidator />
-          </Match>
-          <Match when={true}>
-            <div class="p-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
-              <p class="text-slate-500 dark:text-slate-400">Tool coming soon...</p>
-            </div>
-          </Match>
-        </Switch>
+        <div class="flex-grow flex flex-col">
+          <Switch>
+            <Match when={params.toolId === "json-formatter"}>
+              <JsonEditor />
+            </Match>
+            <Match when={params.toolId === "json-validator"}>
+              <JsonValidator />
+            </Match>
+            <Match when={true}>
+              <div class="p-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                <p class="text-slate-500 dark:text-slate-400">Tool coming soon...</p>
+              </div>
+            </Match>
+          </Switch>
+        </div>
 
         {/* Ethical Ad Placeholder */}
-        <div class="mt-8 p-6 bg-slate-100 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
-          <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Advertisement</p>
-          <p class="text-slate-500 dark:text-slate-400 text-sm">Ad space - Privacy-respecting ads only</p>
-        </div>
+        <Show when={params.toolId !== "json-formatter"}>
+          <div class="mt-8 p-6 bg-slate-100 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+            <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Advertisement</p>
+            <p class="text-slate-500 dark:text-slate-400 text-sm">Ad space - Privacy-respecting ads only</p>
+          </div>
+        </Show>
       </Show>
     </div>
   );

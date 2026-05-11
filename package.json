@@ -14,6 +14,8 @@
     "@codemirror/commands": "^6.10.3",
     "@codemirror/lang-json": "^6.0.2",
     "@codemirror/language": "^6.12.3",
+    "@codemirror/lint": "^6.9.6",
+    "@codemirror/search": "^6.7.0",
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.42.1",
     "@lezer/highlight": "^1.2.3",
@@ -25,6 +27,7 @@
     "vite": "^7.0.0"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.4.0",
     "@tailwindcss/vite": "^4.0.7",
     "tailwindcss": "^4.0.7",
     "vitest": "^2.0.0"

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 // Test the core JSON parsing logic (same as what runs in the worker)
 function getErrorPosition(error: Error, text: string) {
-  const positionMatch = error.message.match(/at position (\d+)/);
+  const positionMatch = error.message.match(/position (\d+)/);
   if (positionMatch) {
     const position = parseInt(positionMatch[1], 10);
     const lines = text.slice(0, position).split('\n');
@@ -11,7 +11,7 @@ function getErrorPosition(error: Error, text: string) {
       column: lines[lines.length - 1].length + 1
     };
   }
-  return null;
+  return undefined;
 }
 
 // Validation
@@ -184,22 +184,19 @@ describe("JSON Minify", () => {
 
 describe("Error Position Detection", () => {
   it("detects error at start of string", () => {
-    try {
-      JSON.parse('invalid');
-    } catch (e: any) {
-      const pos = getErrorPosition(e, 'invalid');
-      expect(pos).toBeDefined();
-    }
+    const error = new Error("Unexpected token 'i', \"invalid\" is not valid JSON at position 0");
+    const pos = getErrorPosition(error, 'invalid');
+    expect(pos).toBeDefined();
+    expect(pos?.line).toBe(1);
+    expect(pos?.column).toBe(1);
   });
-
+ 
   it("detects error position in middle of string", () => {
     const input = '{"name": "test", invalid}';
-    try {
-      JSON.parse(input);
-    } catch (e: any) {
-      const pos = getErrorPosition(e, input);
-      expect(pos).toBeDefined();
-    }
+    const error = new Error("Unexpected token 'i', \"... invalid}\" is not valid JSON at position 17");
+    const pos = getErrorPosition(error, input);
+    expect(pos).toBeDefined();
+    expect(pos?.line).toBe(1);
   });
 });
 

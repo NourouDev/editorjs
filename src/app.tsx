@@ -30,8 +30,8 @@ export default function App() {
     <Router
       root={(props) => (
         <MetaProvider>
-          <div class="min-h-screen bg-[#fafafa] dark:bg-[#0a0e1a] text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
-            <nav class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-4 px-6">
+          <div class="min-h-screen flex flex-col bg-[#fafafa] dark:bg-[#0a0e1a] text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
+            <nav class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-4 px-6 flex-shrink-0">
               <div class="max-w-7xl mx-auto flex justify-between items-center">
                 <a href="/" class="text-xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
                   <span>ZeroJSON</span>
@@ -71,11 +71,11 @@ export default function App() {
                 </div>
               </div>
             </nav>
-            <main class="max-w-7xl mx-auto p-6">
+            <main class="flex-grow flex flex-col min-h-0">
               <Suspense>{props.children}</Suspense>
             </main>
-            <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-8 mt-12">
-              <div class="max-w-7xl mx-auto px-6 text-center text-slate-500 dark:text-slate-400 text-sm">
+            <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-3 w-full flex-shrink-0">
+              <div class="max-w-7xl mx-auto px-6 text-center text-slate-500 dark:text-slate-400 text-xs">
                 <p>ZeroJSON Tools. Privacy First. Performance Always.</p>
               </div>
             </footer>

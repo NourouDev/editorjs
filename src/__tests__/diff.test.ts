@@ -9,6 +9,13 @@ interface DiffLine {
 }
 
 function computeDiff(oldText: string, newText: string): DiffLine[] {
+  if (oldText === "") {
+    return newText.split("\n").map((content, i) => ({ type: "added", content, newLineNum: i + 1 }));
+  }
+  if (newText === "") {
+    return oldText.split("\n").map((content, i) => ({ type: "removed", content, oldLineNum: i + 1 }));
+  }
+
   const oldLines = oldText.split("\n");
   const newLines = newText.split("\n");
 

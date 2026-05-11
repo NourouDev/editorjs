@@ -1,11 +1,13 @@
-import { onMount, onCleanup, createEffect } from "solid-js";
-import { EditorState } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLine } from "@codemirror/view";
+import { onMount, onCleanup, createEffect, createSignal } from "solid-js";
+import { EditorState, StateField, StateEffect } from "@codemirror/state";
+import { EditorView, keymap, lineNumbers, highlightActiveLine, Decoration } from "@codemirror/view";
 import { json } from "@codemirror/lang-json";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, undo, redo } from "@codemirror/commands";
 import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { autocompletion, closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { tags } from "@lezer/highlight";
+import { linter, Diagnostic } from "@codemirror/lint";
+import { search, openSearchPanel, searchKeymap } from "@codemirror/search";
 
 // ─── Light theme ───
 const lightHighlightStyle = HighlightStyle.define([
@@ -72,6 +74,16 @@ const lightTheme = EditorView.theme({
     backgroundColor: "#ffffff",
     border: "1px solid #e2e8f0",
     color: "#1e293b",
+  },
+  ".cm-lintRange-error": {
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    outline: "1px solid rgba(239, 68, 68, 0.4)",
+  },
+  ".cm-diff-added": {
+    backgroundColor: "rgba(34, 197, 94, 0.15)",
+  },
+  ".cm-diff-removed": {
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
   },
 }, { dark: false });
 
@@ -141,18 +153,100 @@ const darkTheme = EditorView.theme({
     border: "1px solid #334155",
     color: "#e2e8f0",
   },
+  ".cm-lintRange-error": {
+    backgroundColor: "rgba(239, 68, 68, 0.2)",
+    outline: "1px solid rgba(239, 68, 68, 0.4)",
+  },
+  ".cm-diff-added": {
+    backgroundColor: "rgba(34, 197, 94, 0.2)",
+  },
+  ".cm-diff-removed": {
+    backgroundColor: "rgba(239, 68, 68, 0.2)",
+  },
 }, { dark: true });
+
+const jsonLinter = linter((view) => {
+  const diagnostics: Diagnostic[] = [];
+  const text = view.state.doc.toString();
+  if (!text.trim()) return diagnostics;
+  
+  try {
+    JSON.parse(text);
+  } catch (e: any) {
+    const posMatch = e.message.match(/position (\d+)/);
+    if (posMatch) {
+      const pos = parseInt(posMatch[1], 10);
+      try {
+        const line = view.state.doc.lineAt(Math.min(pos, text.length));
+        diagnostics.push({
+          from: line.from,
+          to: line.to,
+          severity: "error",
+          message: e.message,
+        });
+      } catch (lineErr) {
+        // Fallback if lineAt fails
+        diagnostics.push({
+          from: Math.max(0, pos - 1),
+          to: Math.min(text.length, pos + 1),
+          severity: "error",
+          message: e.message,
+        });
+      }
+    } else {
+      diagnostics.push({
+        from: 0,
+        to: text.length,
+        severity: "error",
+        message: e.message,
+      });
+    }
+  }
+  return diagnostics;
+});
 
 interface CodeMirrorEditorProps {
   value: string;
   onChange?: (value: string) => void;
+  onCursorChange?: (line: number, col: number) => void;
   readOnly?: boolean;
   theme?: "light" | "dark";
+  ref?: (handle: { undo: () => void; redo: () => void; openSearch: () => void }) => void;
+  diffHighlights?: { added: number[], removed: number[] };
 }
+
+const setDiffHighlights = StateEffect.define<{ added: number[], removed: number[] }>();
+
+const diffField = StateField.define<any>({
+  create() { return Decoration.none; },
+  update(decorations, tr) {
+    decorations = decorations.map(tr.changes);
+    for (let e of tr.effects) {
+      if (e.is(setDiffHighlights)) {
+        let decos = [];
+        for (let line of e.value.added) {
+          if (line > 0 && line <= tr.state.doc.lines) {
+            decos.push(Decoration.line({class: "cm-diff-added"}).range(tr.state.doc.line(line).from));
+          }
+        }
+        for (let line of e.value.removed) {
+          if (line > 0 && line <= tr.state.doc.lines) {
+            decos.push(Decoration.line({class: "cm-diff-removed"}).range(tr.state.doc.line(line).from));
+          }
+        }
+        decos.sort((a, b) => a.from - b.from);
+        return Decoration.set(decos);
+      }
+    }
+    return decorations;
+  },
+  provide: f => EditorView.decorations.from(f)
+});
 
 export default function CodeMirrorEditor(props: CodeMirrorEditorProps) {
   let containerRef: HTMLDivElement | undefined;
   let editorView: EditorView | undefined;
+  const [view, setView] = createSignal<EditorView>();
 
   const isDark = () => (props.theme ?? "light") === "dark";
 
@@ -168,11 +262,15 @@ export default function CodeMirrorEditor(props: CodeMirrorEditorProps) {
       highlightActiveLine(),
       history(),
       json(),
+      jsonLinter,
+      diffField,
       ...themeExt,
+      search(),
       keymap.of([
         ...closeBracketsKeymap,
         ...defaultKeymap,
         ...historyKeymap,
+        ...searchKeymap,
       ]),
       EditorView.lineWrapping,
       EditorState.readOnly.of(props.readOnly ?? false),
@@ -180,11 +278,18 @@ export default function CodeMirrorEditor(props: CodeMirrorEditorProps) {
       autocompletion({ activateOnTyping: false }),
     ];
 
-    if (props.onChange) {
+    if (props.onChange || props.onCursorChange) {
       extensions.push(
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             props.onChange?.(update.state.doc.toString());
+          }
+          if (update.selectionSet || update.docChanged) {
+            if (props.onCursorChange) {
+              const head = update.state.selection.main.head;
+              const line = update.state.doc.lineAt(head);
+              props.onCursorChange(line.number, head - line.from + 1);
+            }
           }
         })
       );
@@ -199,6 +304,25 @@ export default function CodeMirrorEditor(props: CodeMirrorEditorProps) {
       state,
       parent: containerRef,
     });
+
+    setView(editorView);
+
+    props.ref?.({
+      undo: () => undo(editorView!),
+      redo: () => redo(editorView!),
+      openSearch: () => openSearchPanel(editorView!),
+    });
+  });
+
+  // Update diff highlights when props change
+  createEffect(() => {
+    const v = view();
+    const highlights = props.diffHighlights;
+    if (v && highlights) {
+      v.dispatch({
+        effects: setDiffHighlights.of(highlights)
+      });
+    }
   });
 
   // Recreate editor when theme changes
@@ -218,11 +342,15 @@ export default function CodeMirrorEditor(props: CodeMirrorEditorProps) {
       highlightActiveLine(),
       history(),
       json(),
+      jsonLinter,
+      diffField,
       ...themeExt,
+      search(),
       keymap.of([
         ...closeBracketsKeymap,
         ...defaultKeymap,
         ...historyKeymap,
+        ...searchKeymap,
       ]),
       EditorView.lineWrapping,
       EditorState.readOnly.of(props.readOnly ?? false),
@@ -230,11 +358,18 @@ export default function CodeMirrorEditor(props: CodeMirrorEditorProps) {
       autocompletion({ activateOnTyping: false }),
     ];
 
-    if (props.onChange) {
+    if (props.onChange || props.onCursorChange) {
       extensions.push(
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             props.onChange?.(update.state.doc.toString());
+          }
+          if (update.selectionSet || update.docChanged) {
+            if (props.onCursorChange) {
+              const head = update.state.selection.main.head;
+              const line = update.state.doc.lineAt(head);
+              props.onCursorChange(line.number, head - line.from + 1);
+            }
           }
         })
       );
@@ -249,15 +384,18 @@ export default function CodeMirrorEditor(props: CodeMirrorEditorProps) {
       state,
       parent: containerRef,
     });
+
+    setView(editorView);
   });
 
   createEffect(() => {
     const newValue = props.value;
-    if (editorView && newValue !== editorView.state.doc.toString()) {
-      editorView.dispatch({
+    const v = view();
+    if (v && newValue !== v.state.doc.toString()) {
+      v.dispatch({
         changes: {
           from: 0,
-          to: editorView.state.doc.length,
+          to: v.state.doc.length,
           insert: newValue,
         },
       });

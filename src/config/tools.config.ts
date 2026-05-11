@@ -16,9 +16,9 @@ export const TOOLS_REGISTRY: Record<string, ToolDefinition> = {
   },
   "json-formatter": {
     id: "json-formatter",
-    name: "JSON Formatter",
-    description: "Pretty print and diff JSON. 100% private, 100% client-side.",
-    shortDescription: "Format JSON locally.",
+    name: "JSON Editor",
+    description: "Professional JSON editor with tree view, format, diff, and bidirectional transforms.",
+    shortDescription: "Edit JSON locally.",
     icon: "format"
   }
 };
