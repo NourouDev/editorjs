@@ -78,8 +78,9 @@ function zodExpr(val: unknown, depth: number, schemas: Map<string, string>, name
   }
   if (Array.isArray(val)) {
     if (!val.length) return "z.array(z.unknown())";
-    const inner = [...new Set(val.map(i => zodExpr(i, depth, schemas, name)))];
-    return `z.array(${inner.length === 1 ? inner[0] : `z.union([${inner.join(", ")}])`})`;
+    // Use only first item for schema inference — avoids O(n) on large arrays
+    const first = zodExpr(val[0], depth, schemas, name.replace(/s$/, ""));
+    return `z.array(${first})`;
   }
   if (typeof val === "object") {
     const schemaName = `${toCamelCase(name)}Schema`;
@@ -364,15 +365,26 @@ function generateTable(
   for (const [key, value] of Object.entries(obj)) {
     const col = toSnakeCase(key);
     if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-      generateTable(`${tableName}_${toPascalCase(key)}`, value as Record<string, unknown>, tables, snakeName,
-        allRows.map(r => (r[key] as Record<string, unknown> | null) ?? {}).filter(Boolean) as Record<string, unknown>[]);
+      const childRows = allRows
+        .map(r => (r[key] as Record<string, unknown> | null) ?? {})
+        .filter(Boolean)
+        .slice(0, 10) as Record<string, unknown>[];
+      generateTable(`${tableName}_${toPascalCase(key)}`, value as Record<string, unknown>, tables, snakeName, childRows);
       cols.push(`  ${col}_id INTEGER REFERENCES ${toSnakeCase(`${tableName}_${toPascalCase(key)}`)}(id)`);
     } else if (Array.isArray(value)) {
       const first = value[0];
       if (first !== null && typeof first === "object" && !Array.isArray(first)) {
-        const childRows = allRows.flatMap(r => (r[key] as unknown[]) || []).filter(
-          r => r !== null && typeof r === "object"
-        ) as Record<string, unknown>[];
+        const childRows: Record<string, unknown>[] = [];
+        for (const r of allRows) {
+          const arr = (r[key] as unknown[]) || [];
+          for (const item of arr) {
+            if (item !== null && typeof item === "object" && !Array.isArray(item)) {
+              childRows.push(item as Record<string, unknown>);
+              if (childRows.length >= 10) break;
+            }
+          }
+          if (childRows.length >= 10) break;
+        }
         generateTable(`${tableName}_${toPascalCase(key)}`, first as Record<string, unknown>, tables, snakeName, childRows);
       } else {
         cols.push(`  ${col} JSONB -- array`);
@@ -404,10 +416,10 @@ export function jsonToSql(json: unknown, rootName = "table", includeInserts = fa
       return `CREATE TABLE ${toSnakeCase(rootName)} (\n  id SERIAL PRIMARY KEY,\n  value TEXT NOT NULL\n);`;
     }
     source = first as Record<string, unknown>;
-    dataRows = json as Record<string, unknown>[];
+    dataRows = includeInserts ? (json as Record<string, unknown>[]).slice(0, 10) : [];
   } else {
     source = json as Record<string, unknown>;
-    dataRows = [source];
+    dataRows = includeInserts ? [source] : [];
   }
 
   generateTable(toPascalCase(rootName), source, tables, undefined, dataRows);
@@ -419,13 +431,16 @@ export function jsonToSql(json: unknown, rootName = "table", includeInserts = fa
     ``,
   ];
 
+  const MAX_INSERTS = 10;
   for (const t of tables.reverse()) {
     lines.push(t.ddl);
     if (includeInserts && t.rows.length > 0) {
       lines.push("");
-      const sampleRows = t.rows.slice(0, 10); // max 10 rows
+      // Cap at MAX_INSERTS per table — safe for large datasets
+      const sampleRows = t.rows.slice(0, MAX_INSERTS);
+      const tableSource = sampleRows[0] ? Object.keys(sampleRows[0]) : [];
       for (const row of sampleRows) {
-        const cols = Object.keys(source).filter(k => {
+        const cols = tableSource.filter(k => {
           const v = row[k];
           return !(v !== null && typeof v === "object" && !Array.isArray(v));
         });

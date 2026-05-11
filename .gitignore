@@ -30,3 +30,9 @@ Thumbs.db
 # MemPalace per-project files (issue #185)
 mempalace.yaml
 entities.json
+\n# Test fixtures (large JSON files, download on demand)\nsrc/__tests__/fixtures/*.json
+
+src/__tests__/fixtures/data_10mb.json
+src/__tests__/fixtures/data_25mb.json
+src/__tests__/fixtures/data_100mb.json
+src/__tests__/fixtures/data_50mb.json
