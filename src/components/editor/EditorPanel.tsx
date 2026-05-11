@@ -12,6 +12,7 @@ type ViewMode = "text" | "tree" | "table";
 interface EditorPanelProps {
   value: string;
   onChange: (value: string) => void;
+  onPaste?: (text: string) => void;
   cursorInfo?: { line: number; col: number };
   diffHighlights?: { added: number[], removed: number[] };
 }
@@ -80,6 +81,7 @@ export default function EditorPanel(props: EditorPanelProps) {
             <CodeMirrorEditor
               value={props.value}
               onChange={props.onChange}
+              onPaste={props.onPaste}
               theme={isDarkMode() ? "dark" : "light"}
               onCursorChange={(line, col) => setCursorPos({ line, col })}
               ref={(handle) => editorHandle = handle}
@@ -89,7 +91,7 @@ export default function EditorPanel(props: EditorPanelProps) {
         </Show>
         <Show when={viewMode() === "tree"}>
           <div class="absolute inset-0 overflow-auto">
-            <JsonTreeView value={props.value} defaultExpanded={globalExpanded()} />
+            <JsonTreeView value={props.value} defaultExpanded={globalExpanded()} onUpdate={props.onChange} />
           </div>
         </Show>
         <Show when={viewMode() === "table"}>

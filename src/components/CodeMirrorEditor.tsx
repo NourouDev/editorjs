@@ -1,13 +1,13 @@
 import { onMount, onCleanup, createEffect, createSignal } from "solid-js";
 import { EditorState, StateField, StateEffect } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLine, Decoration } from "@codemirror/view";
+import { EditorView, keymap, lineNumbers, highlightActiveLine, Decoration, gutter, GutterMarker } from "@codemirror/view";
 import { json } from "@codemirror/lang-json";
 import { defaultKeymap, history, historyKeymap, undo, redo } from "@codemirror/commands";
 import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { autocompletion, closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { tags } from "@lezer/highlight";
-import { linter, Diagnostic } from "@codemirror/lint";
 import { search, openSearchPanel, searchKeymap } from "@codemirror/search";
+import { linter, Diagnostic, lintGutter } from "@codemirror/lint";
 
 // ─── Light theme ───
 const lightHighlightStyle = HighlightStyle.define([
@@ -85,6 +85,44 @@ const lightTheme = EditorView.theme({
   ".cm-diff-removed": {
     backgroundColor: "rgba(239, 68, 68, 0.15)",
   },
+  ".cm-diff-marker-added": {
+    color: "#16a34a",
+    fontWeight: "bold",
+    paddingLeft: "4px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "14px",
+  },
+  ".cm-diff-marker-removed": {
+    color: "#dc2626",
+    fontWeight: "bold",
+    paddingLeft: "4px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "14px",
+  },
+  ".cm-error-marker": {
+    color: "#ef4444",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    fontSize: "16px",
+    filter: "drop-shadow(0 0 2px rgba(239, 68, 68, 0.3))",
+  },
+  ".cm-lint-marker-error": {
+    width: "10px",
+    height: "10px",
+    borderRadius: "50%",
+    backgroundColor: "#ef4444",
+    border: "1.5px solid #ffffff",
+    boxShadow: "0 0 0 1px #ef4444, 0 0 4px rgba(239, 68, 68, 0.4)",
+    cursor: "pointer",
+    margin: "4px auto",
+    display: "block",
+  }
 }, { dark: false });
 
 // ─── Dark theme ───
@@ -163,6 +201,44 @@ const darkTheme = EditorView.theme({
   ".cm-diff-removed": {
     backgroundColor: "rgba(239, 68, 68, 0.2)",
   },
+  ".cm-diff-marker-added": {
+    color: "#4ade80",
+    fontWeight: "bold",
+    paddingLeft: "4px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "14px",
+  },
+  ".cm-diff-marker-removed": {
+    color: "#f87171",
+    fontWeight: "bold",
+    paddingLeft: "4px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "14px",
+  },
+  ".cm-error-marker": {
+    color: "#f87171",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    fontSize: "16px",
+    filter: "drop-shadow(0 0 4px rgba(239, 68, 68, 0.5))",
+  },
+  ".cm-lint-marker-error": {
+    width: "10px",
+    height: "10px",
+    borderRadius: "50%",
+    backgroundColor: "#f87171",
+    border: "1.5px solid #0f172a",
+    boxShadow: "0 0 0 1px #ef4444, 0 0 6px rgba(239, 68, 68, 0.6)",
+    cursor: "pointer",
+    margin: "4px auto",
+    display: "block",
+  }
 }, { dark: true });
 
 const jsonLinter = linter((view) => {
@@ -209,6 +285,7 @@ interface CodeMirrorEditorProps {
   value: string;
   onChange?: (value: string) => void;
   onCursorChange?: (line: number, col: number) => void;
+  onPaste?: (text: string) => void;
   readOnly?: boolean;
   theme?: "light" | "dark";
   ref?: (handle: { undo: () => void; redo: () => void; openSearch: () => void }) => void;
@@ -243,6 +320,40 @@ const diffField = StateField.define<any>({
   provide: f => EditorView.decorations.from(f)
 });
 
+class Marker extends GutterMarker {
+  constructor(readonly text: string, readonly className: string) { super() }
+  toDOM() {
+    let div = document.createElement("div");
+    div.className = this.className;
+    div.textContent = this.text;
+    return div;
+  }
+}
+
+const diffGutterInstance = gutter({
+  lineMarker(view, line) {
+    const decorations = view.state.field(diffField);
+    let marker = null;
+    decorations.between(line.from, line.from, (_from: number, _to: number, value: any) => {
+      if (value.spec.class === "cm-diff-added") {
+        marker = new Marker("+", "cm-diff-marker-added");
+      } else if (value.spec.class === "cm-diff-removed") {
+        marker = new Marker("-", "cm-diff-marker-removed");
+      }
+    });
+    return marker;
+  },
+  initialSpacer: () => new Marker("+", "cm-diff-marker-added")
+});
+
+const errorMarker = new Marker("●", "cm-error-marker");
+
+const errorGutterInstance = lintGutter({
+  markerFilter: (d: readonly Diagnostic[]) => {
+    return d.filter(diag => diag.severity === "error");
+  }
+});
+
 export default function CodeMirrorEditor(props: CodeMirrorEditorProps) {
   let containerRef: HTMLDivElement | undefined;
   let editorView: EditorView | undefined;
@@ -259,6 +370,8 @@ export default function CodeMirrorEditor(props: CodeMirrorEditorProps) {
 
     const extensions = [
       lineNumbers(),
+      diffGutterInstance,
+      errorGutterInstance,
       highlightActiveLine(),
       history(),
       json(),
@@ -276,6 +389,13 @@ export default function CodeMirrorEditor(props: CodeMirrorEditorProps) {
       EditorState.readOnly.of(props.readOnly ?? false),
       closeBrackets(),
       autocompletion({ activateOnTyping: false }),
+      EditorView.domEventHandlers({
+        paste(event, view) {
+          const text = event.clipboardData?.getData('text');
+          if (text) props.onPaste?.(text);
+          return false;
+        }
+      })
     ];
 
     if (props.onChange || props.onCursorChange) {
@@ -339,6 +459,8 @@ export default function CodeMirrorEditor(props: CodeMirrorEditorProps) {
 
     const extensions = [
       lineNumbers(),
+      diffGutterInstance,
+      errorGutterInstance,
       highlightActiveLine(),
       history(),
       json(),
@@ -356,6 +478,13 @@ export default function CodeMirrorEditor(props: CodeMirrorEditorProps) {
       EditorState.readOnly.of(props.readOnly ?? false),
       closeBrackets(),
       autocompletion({ activateOnTyping: false }),
+      EditorView.domEventHandlers({
+        paste(event, view) {
+          const text = event.clipboardData?.getData('text');
+          if (text) props.onPaste?.(text);
+          return false;
+        }
+      })
     ];
 
     if (props.onChange || props.onCursorChange) {

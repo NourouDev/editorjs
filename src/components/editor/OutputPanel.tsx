@@ -12,6 +12,8 @@ type ViewMode = "text" | "tree" | "table";
 interface OutputPanelProps {
   value: string;
   onChange?: (value: string) => void;
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
   cursorInfo?: { line: number; col: number };
   onFormat?: () => void;
   onCompact?: () => void;
@@ -19,7 +21,12 @@ interface OutputPanelProps {
 }
 
 export default function OutputPanel(props: OutputPanelProps) {
-  const [viewMode, setViewMode] = createSignal<ViewMode>("text");
+  const [internalViewMode, setInternalViewMode] = createSignal<ViewMode>("text");
+  const viewMode = () => props.viewMode ?? internalViewMode();
+  const setViewMode = (mode: ViewMode) => {
+    if (props.onViewModeChange) props.onViewModeChange(mode);
+    else setInternalViewMode(mode);
+  };
   const [cursorPos, setCursorPos] = createSignal({ line: 1, col: 1 });
 
   const viewBtnClass = (mode: ViewMode) =>
@@ -97,7 +104,7 @@ export default function OutputPanel(props: OutputPanelProps) {
           </Show>
           <Show when={viewMode() === "tree"}>
             <div class="absolute inset-0 overflow-auto">
-              <JsonTreeView value={props.value} />
+              <JsonTreeView value={props.value} onUpdate={props.onChange} />
             </div>
           </Show>
           <Show when={viewMode() === "table"}>
