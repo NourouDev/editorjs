@@ -3,10 +3,9 @@ import { createJsonWorker } from "~/lib/jsonWorker";
 import EditorPanel from "../editor/EditorPanel";
 import OutputPanel from "../editor/OutputPanel";
 import ResizableSplitter from "../editor/ResizableSplitter";
-import JsonDiffView, { computeDiff, DiffLine } from "../editor/JsonDiffView";
 import { 
   CheckIcon, XIcon, FileIcon, FolderOpenIcon, SaveIcon, CopyIcon, 
-  FullScreenIcon, FormatIcon, CompactIcon, SortAscIcon, SortDescIcon, CompareIcon
+  FullScreenIcon, CompareIcon
 } from "../SvgIcons";
 
 export default function JsonEditor() {
@@ -20,28 +19,7 @@ const defaultJson = '{\n  "name": "ZeroJSON",\n  "version": "1.0.0",\n  "feature
   const [isFullscreen, setIsFullscreen] = createSignal(false);
   const [outputViewMode, setOutputViewMode] = createSignal<"text" | "tree" | "table">("text");
  
-  const diffData = createMemo(() => {
-    if (!isDiffMode()) return { left: { added: [], removed: [] }, right: { added: [], removed: [] } };
-    
-    // Treat Left as Current (Modified) and Right as Reference (Original)
-    // So additions on Left are highlighted as added (green)
-    const diff = computeDiff(rightInput(), leftInput());
-    const leftAdded: number[] = [];
-    const rightRemoved: number[] = [];
-    
-    diff.forEach(line => {
-      if (line.type === "added" && line.newLineNum) {
-        leftAdded.push(line.newLineNum);
-      } else if (line.type === "removed" && line.oldLineNum) {
-        rightRemoved.push(line.oldLineNum);
-      }
-    });
-    
-    return {
-      left: { added: leftAdded, removed: [] },
-      right: { added: [], removed: rightRemoved }
-    };
-  });
+
 
   let worker: Worker | undefined;
   let containerRef!: HTMLDivElement;
@@ -94,36 +72,7 @@ const defaultJson = '{\n  "name": "ZeroJSON",\n  "version": "1.0.0",\n  "feature
     }
   };
 
-  // --- Transformations (Left -> Right) ---
-  const handleFormat = () => {
-    try {
-      const parsed = JSON.parse(leftInput());
-      setRightInput(JSON.stringify(parsed, null, 2));
-      showStatus("success", "Formatted");
-      setIsDiffMode(false);
-    } catch (err: any) {
-      showStatus("error", err.message);
-    }
-  };
 
-  const handleCompact = () => {
-    try {
-      const parsed = JSON.parse(leftInput());
-      setRightInput(JSON.stringify(parsed));
-      showStatus("success", "Compacted");
-      setIsDiffMode(false);
-    } catch (err: any) {
-      showStatus("error", err.message);
-    }
-  };
-
-  const handleSort = (direction: 'asc' | 'desc') => {
-    if (!worker || !leftInput().trim()) return;
-    setIsProcessing(true);
-    setStatus({ type: "idle", message: "Sorting..." });
-    worker.postMessage({ type: 'sort', data: leftInput(), direction, _reqType: 'sort_right' });
-    setIsDiffMode(false);
-  };
 
   const handleToggleDiff = () => {
     setIsDiffMode(!isDiffMode());
@@ -202,8 +151,8 @@ const defaultJson = '{\n  "name": "ZeroJSON",\n  "version": "1.0.0",\n  "feature
     }
   };
 
-  const actionBtnClass = "flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-all duration-200 shadow-sm hover:shadow-indigo-500/10 active:scale-[0.98]";
-  const iconBtnClass = "p-2 rounded-xl transition-all duration-200 hover:bg-white dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 border border-transparent hover:border-slate-200 dark:hover:border-slate-600 hover:shadow-sm active:scale-90";
+  const actionBtnClass = "flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 shadow-sm";
+  const iconBtnClass = "p-2 rounded-xl transition-all duration-200 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm shadow-transparent hover:shadow-slate-200/50 dark:hover:shadow-indigo-900/20";
 
   return (
     <div ref={containerRef} class={`flex flex-col w-full ${isFullscreen() ? 'h-screen w-screen fixed inset-0 z-50 bg-slate-50 dark:bg-[#0b1120] p-4 m-0' : 'h-[calc(100vh-67px)]'}`}>
@@ -222,26 +171,7 @@ const defaultJson = '{\n  "name": "ZeroJSON",\n  "version": "1.0.0",\n  "feature
           </button>
         </div>
 
-        {/* Central Transform Actions */}
         <div class="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/50 p-1 rounded-lg border border-slate-100 dark:border-slate-700/50">
-          <button class={`${iconBtnClass} ${!isDiffMode() ? 'bg-white dark:bg-slate-700 shadow-sm' : ''}`} onClick={handleFormat} title="Format (pretty print)">
-            <FormatIcon /> <span class="sr-only">Format</span>
-          </button>
-          <button class={iconBtnClass} onClick={handleCompact} title="Compact (minify)">
-            <CompactIcon /> <span class="sr-only">Compact</span>
-          </button>
-          
-          <div class="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
-          
-          <button class={iconBtnClass} onClick={() => handleSort('asc')} title="Sort keys A→Z">
-            <SortAscIcon /> <span class="sr-only">Sort A-Z</span>
-          </button>
-          <button class={iconBtnClass} onClick={() => handleSort('desc')} title="Sort keys Z→A">
-            <SortDescIcon /> <span class="sr-only">Sort Z-A</span>
-          </button>
-
-          <div class="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
-
           <button 
             class={`${iconBtnClass} flex items-center gap-1.5 px-2.5 ${isDiffMode() ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-700 shadow-sm border border-indigo-100 dark:border-indigo-900/50' : 'border border-transparent'}`} 
             onClick={handleToggleDiff} 
@@ -292,7 +222,6 @@ const defaultJson = '{\n  "name": "ZeroJSON",\n  "version": "1.0.0",\n  "feature
                 value={leftInput()} 
                 onChange={setLeftInput}
                 onPaste={handlePaste}
-                diffHighlights={diffData().left}
               />
             </div>
           </Show>
@@ -338,7 +267,6 @@ const defaultJson = '{\n  "name": "ZeroJSON",\n  "version": "1.0.0",\n  "feature
                 onChange={setRightInput} 
                 viewMode={outputViewMode()}
                 onViewModeChange={setOutputViewMode}
-                diffHighlights={diffData().right}
               />
             </div>
           </Show>

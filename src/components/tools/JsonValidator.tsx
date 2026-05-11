@@ -1,6 +1,6 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { createJsonWorker } from "~/lib/jsonWorker";
-import CodeMirrorEditor from "../CodeMirrorEditor";
+import SvelteJsonEditor from "../editor/SvelteJsonEditor";
 import { CheckIcon, XIcon } from "~/components/SvgIcons";
 import { isDarkMode } from "~/lib/theme";
 
@@ -98,11 +98,11 @@ export default function JsonValidator() {
         </div>
       </div>
 
-      <div class="h-[500px] rounded-xl overflow-hidden border border-slate-700 dark:border-slate-800">
-        <CodeMirrorEditor
+      <div class="h-[500px] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+        <SvelteJsonEditor
           value={jsonInput()}
           onChange={setJsonInput}
-          theme={isDarkMode() ? "dark" : "light"}
+          mode="text"
         />
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { createSignal, Show, For, createMemo, onCleanup, onMount } from "solid-js";
 import { createJsonWorker } from "~/lib/jsonWorker";
 import { CopyIcon, CheckIcon, XIcon } from "~/components/SvgIcons";
-import CodeMirrorEditor from "../CodeMirrorEditor";
+import SvelteJsonEditor from "../editor/SvelteJsonEditor";
 import { isDarkMode } from "~/lib/theme";
 
 type ViewMode = "split" | "diff";
@@ -256,8 +256,8 @@ export default function JsonFormatter() {
               </span>
               <span class="text-xs text-slate-400 dark:text-slate-500 font-mono">{originalInput().length} chars</span>
             </div>
-            <div class="h-[450px] rounded-b-xl overflow-hidden border border-slate-200 dark:border-slate-800 border-t-0">
-              <CodeMirrorEditor value={originalInput()} onChange={setOriginalInput} theme={isDarkMode() ? "dark" : "light"} />
+            <div class="h-[500px] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+              <SvelteJsonEditor value={originalInput()} onChange={setOriginalInput} mode="text" />
             </div>
           </div>
 
@@ -270,10 +270,10 @@ export default function JsonFormatter() {
               <span class="text-xs text-slate-400 dark:text-slate-500 font-mono">{formattedOutput().length} chars</span>
             </div>
             <div class="h-[450px] rounded-b-xl overflow-hidden border border-slate-200 dark:border-slate-800 border-t-0">
-              <CodeMirrorEditor
+              <SvelteJsonEditor
                 value={formattedOutput() || "// Click Format"}
                 readOnly
-                theme={isDarkMode() ? "dark" : "light"}
+                mode="text"
               />
             </div>
           </div>

@@ -1,11 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { isDarkMode } from "~/lib/theme";
-import CodeMirrorEditor from "../CodeMirrorEditor";
-import {
-  TextIcon, TreeIcon, TableIcon
-} from "../SvgIcons";
-import JsonTreeView from "./JsonTreeView";
-import JsonTableView from "./JsonTableView";
+import { TextIcon, TreeIcon, TableIcon } from "../SvgIcons";
+import SvelteJsonEditor from "./SvelteJsonEditor";
 
 type ViewMode = "text" | "tree" | "table";
 
@@ -91,27 +87,14 @@ export default function OutputPanel(props: OutputPanelProps) {
             </div>
           }
         >
-          <Show when={viewMode() === "text"}>
-            <div class="absolute inset-0">
-              <CodeMirrorEditor
-                value={props.value}
-                onChange={props.onChange}
-                theme={isDarkMode() ? "dark" : "light"}
-                onCursorChange={(line, col) => setCursorPos({ line, col })}
-                diffHighlights={props.diffHighlights}
-              />
-            </div>
-          </Show>
-          <Show when={viewMode() === "tree"}>
-            <div class="absolute inset-0 overflow-auto">
-              <JsonTreeView value={props.value} onUpdate={props.onChange} />
-            </div>
-          </Show>
-          <Show when={viewMode() === "table"}>
-            <div class="absolute inset-0 overflow-auto">
-              <JsonTableView value={props.value} />
-            </div>
-          </Show>
+          <div class="absolute inset-0">
+            <SvelteJsonEditor 
+              value={props.value} 
+              onChange={props.onChange} 
+              mode={viewMode()} 
+              readOnly={true}
+            />
+          </div>
         </Show>
       </div>
 

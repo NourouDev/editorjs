@@ -1,11 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { isDarkMode } from "~/lib/theme";
-import CodeMirrorEditor from "../CodeMirrorEditor";
-import {
-  SearchIcon, UndoIcon, RedoIcon, TextIcon, TreeIcon, TableIcon
-} from "../SvgIcons";
-import JsonTreeView from "./JsonTreeView";
-import JsonTableView from "./JsonTableView";
+import { SearchIcon, UndoIcon, RedoIcon, TextIcon, TreeIcon, TableIcon } from "../SvgIcons";
+import SvelteJsonEditor from "./SvelteJsonEditor";
 
 type ViewMode = "text" | "tree" | "table";
 
@@ -23,7 +19,7 @@ export default function EditorPanel(props: EditorPanelProps) {
   const [globalExpanded, setGlobalExpanded] = createSignal(true);
   let editorHandle: { undo: () => void; redo: () => void; openSearch: () => void } | undefined;
 
-  const toolbarBtnClass = "p-1.5 rounded-md transition-all duration-150 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 active:scale-95";
+  const toolbarBtnClass = "p-1.5 rounded-md transition-all duration-150 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200";
 
   const viewBtnClass = (mode: ViewMode) =>
     `px-2.5 py-1 text-xs font-semibold rounded transition-all duration-150 ${
@@ -76,29 +72,13 @@ export default function EditorPanel(props: EditorPanelProps) {
 
       {/* Editor content */}
       <div class="flex-1 min-h-0 relative">
-        <Show when={viewMode() === "text"}>
-          <div class="absolute inset-0">
-            <CodeMirrorEditor
-              value={props.value}
-              onChange={props.onChange}
-              onPaste={props.onPaste}
-              theme={isDarkMode() ? "dark" : "light"}
-              onCursorChange={(line, col) => setCursorPos({ line, col })}
-              ref={(handle) => editorHandle = handle}
-              diffHighlights={props.diffHighlights}
-            />
-          </div>
-        </Show>
-        <Show when={viewMode() === "tree"}>
-          <div class="absolute inset-0 overflow-auto">
-            <JsonTreeView value={props.value} defaultExpanded={globalExpanded()} onUpdate={props.onChange} />
-          </div>
-        </Show>
-        <Show when={viewMode() === "table"}>
-          <div class="absolute inset-0 overflow-auto">
-            <JsonTableView value={props.value} />
-          </div>
-        </Show>
+        <div class="absolute inset-0">
+          <SvelteJsonEditor 
+            value={props.value} 
+            onChange={props.onChange} 
+            mode={viewMode()} 
+          />
+        </div>
       </div>
 
       {/* Status bar */}
