@@ -39,10 +39,10 @@ export default function App() {
     <Router
       root={(props) => (
         <MetaProvider>
-          <Title>ZeroJSON Tools - 100% Secure, 0 Network Requests</Title>
-          <Meta name="description" content="Convert JSON to TypeScript, Zod, Go, Rust, SQL, and CSV directly in your browser. 0 network requests, 100% private and offline-capable." />
+          <Title>ZeroJSON Tools - Private Client-Side Processing</Title>
+          <Meta name="description" content="Convert JSON to TypeScript, Zod, Go, Rust, SQL, and CSV directly in your browser. 100% private, client-side, and offline-capable." />
           <Meta property="og:title" content="ZeroJSON Tools - 100% Secure JSON Converter" />
-          <Meta property="og:description" content="Convert massive JSON files in your browser. 0 network requests. Ultra-fast performance." />
+          <Meta property="og:description" content="Convert massive JSON files in your browser. Data never leaves your machine. Ultra-fast performance." />
           <Meta property="og:url" content="https://editorjs.pages.dev/" />
           <Meta property="og:type" content="website" />
           <Meta name="twitter:card" content="summary_large_image" />
@@ -59,7 +59,7 @@ export default function App() {
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                       <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                     </svg>
-                    <span>0 network requests</span>
+                    <span>Client-Side Processing</span>
                   </div>
                   <button
                     onClick={toggleTheme}
