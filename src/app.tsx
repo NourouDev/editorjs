@@ -1,8 +1,9 @@
 import { Router } from "@solidjs/router";
 import { FileRoutes } from "@solidjs/start/router";
 import { Suspense, onMount } from "solid-js";
-import { MetaProvider } from "@solidjs/meta";
+import { MetaProvider, Title, Meta, Link } from "@solidjs/meta";
 import { isDarkMode, setIsDarkMode } from "./lib/theme";
+import EthicalAds from "./components/layout/EthicalAds";
 import "./app.css";
 
 export default function App() {
@@ -30,6 +31,14 @@ export default function App() {
     <Router
       root={(props) => (
         <MetaProvider>
+          <Title>ZeroJSON Tools - 100% Secure, 0 Network Requests</Title>
+          <Meta name="description" content="Convert JSON to TypeScript, Zod, Go, Rust, SQL, and CSV directly in your browser. 0 network requests, 100% private and offline-capable." />
+          <Meta property="og:title" content="ZeroJSON Tools - 100% Secure JSON Converter" />
+          <Meta property="og:description" content="Convert massive JSON files in your browser. 0 network requests. Ultra-fast performance." />
+          <Meta property="og:url" content="https://zero-json.duckdns.org/" />
+          <Meta property="og:type" content="website" />
+          <Meta name="twitter:card" content="summary_large_image" />
+          <Link rel="canonical" href="https://zero-json.duckdns.org/" />
           <div class="min-h-screen flex flex-col bg-[#fafafa] dark:bg-[#0a0e1a] text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
             <nav class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-4 px-6 flex-shrink-0">
               <div class="max-w-7xl mx-auto flex justify-between items-center">
@@ -74,9 +83,14 @@ export default function App() {
             <main class="flex-grow flex flex-col min-h-0">
               <Suspense>{props.children}</Suspense>
             </main>
-            <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-3 w-full flex-shrink-0">
-              <div class="max-w-7xl mx-auto px-6 text-center text-slate-500 dark:text-slate-400 text-xs">
-                <p>ZeroJSON Tools. Privacy First. Performance Always.</p>
+            <EthicalAds />
+            <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-6 w-full flex-shrink-0">
+              <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-slate-500 dark:text-slate-400 text-xs">
+                <p>&copy; {new Date().getFullYear()} ZeroJSON Tools. Privacy First. Performance Always.</p>
+                <div class="flex gap-4">
+                  <a href="/privacy-policy" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Privacy Policy</a>
+                  <a href="/terms" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Terms of Service</a>
+                </div>
               </div>
             </footer>
           </div>

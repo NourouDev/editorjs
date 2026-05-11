@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://zero-json.duckdns.org/sitemap.xml
