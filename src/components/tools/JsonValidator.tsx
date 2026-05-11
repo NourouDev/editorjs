@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import { createJsonWorker } from "~/lib/jsonWorker";
 import SvelteJsonEditor from "../editor/SvelteJsonEditor";
 import { CheckIcon, XIcon } from "~/components/SvgIcons";
@@ -8,6 +8,7 @@ export default function JsonValidator() {
   const [jsonInput, setJsonInput] = createSignal('{\n  "hello": "world"\n}');
   const [status, setStatus] = createSignal<{ type: string; message: string }>({ type: 'idle', message: 'Ready' });
   const [isProcessing, setIsProcessing] = createSignal(false);
+  const [validationErrors, setValidationErrors] = createSignal<any[]>([]);
 
   let worker: Worker | undefined;
 
@@ -18,16 +19,28 @@ export default function JsonValidator() {
       setIsProcessing(false);
 
       if (success) {
-        if (type === 'format') {
+        setValidationErrors([]);
+        if (type === 'format' || type === 'repair') {
           setJsonInput(formatted);
-          setStatus({ type: 'success', message: 'Formatted' });
+          setStatus({ type: 'success', message: type === 'format' ? 'Formatted' : 'Repaired' });
         } else {
           setStatus({ type: 'success', message: 'Valid JSON' });
         }
       } else {
         let msg = error;
-        if (position && !error.toLowerCase().includes('line')) {
-          msg += ` at line ${position.line}, column ${position.column}`;
+        if (position) {
+          if (!error.toLowerCase().includes('line')) {
+            msg += ` at line ${position.line}, column ${position.column}`;
+          }
+          setValidationErrors([{
+            path: [],
+            message: error,
+            severity: 'error',
+            range: {
+              start: { line: position.line - 1, column: position.column - 1 },
+              end: { line: position.line - 1, column: position.column + 10 } // Highlight a bit of the line
+            }
+          }]);
         }
         setStatus({ type: 'error', message: msg });
       }
@@ -62,6 +75,15 @@ export default function JsonValidator() {
     worker.postMessage({ type: 'format', data: input });
   };
 
+  const handleSolve = () => {
+    const input = jsonInput().trim();
+    if (!input) return;
+    if (!worker) return;
+    setIsProcessing(true);
+    setStatus({ type: 'idle', message: 'Repairing...' });
+    worker.postMessage({ type: 'repair', data: input });
+  };
+
   return (
     <div class="space-y-6">
       <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -80,6 +102,15 @@ export default function JsonValidator() {
           >
             Format
           </button>
+          <Show when={status().type === 'error'}>
+            <button
+              onClick={handleSolve}
+              disabled={isProcessing()}
+              class="px-6 py-2.5 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-all animate-in fade-in slide-in-from-left-2"
+            >
+              Solve
+            </button>
+          </Show>
         </div>
         <div class="flex items-center gap-2">
           {status().type === 'success' && (
@@ -103,6 +134,7 @@ export default function JsonValidator() {
           value={jsonInput()}
           onChange={setJsonInput}
           mode="text"
+          validationErrors={validationErrors()}
         />
       </div>
     </div>

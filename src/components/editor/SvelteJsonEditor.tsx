@@ -10,6 +10,7 @@ interface SvelteJsonEditorProps {
   onChange?: (value: string) => void;
   readOnly?: boolean;
   mode?: "tree" | "text" | "table";
+  validationErrors?: any[];
 }
 
 export default function SvelteJsonEditor(props: SvelteJsonEditorProps) {
@@ -32,6 +33,7 @@ export default function SvelteJsonEditor(props: SvelteJsonEditorProps) {
         navigationBar: true,
         statusBar: true,
         askToFormat: false,
+        validationErrors: props.validationErrors || [],
         onChange: (content: any) => {
           if (props.onChange && !isInternalUpdate) {
             const text = content.text !== undefined ? content.text : JSON.stringify(content.json, null, 2);
@@ -57,7 +59,8 @@ export default function SvelteJsonEditor(props: SvelteJsonEditorProps) {
       editor.updateProps({
         content: { text: props.value },
         mode: props.mode || "tree",
-        readOnly: props.readOnly || false
+        readOnly: props.readOnly || false,
+        validationErrors: props.validationErrors || []
       });
     }
   });

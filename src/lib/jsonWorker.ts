@@ -63,8 +63,34 @@ self.onmessage = (e) => {
         _reqType: e.data._reqType
       });
     }
+  } else if (type === 'repair') {
+    try {
+      const repaired = repairJson(data);
+      JSON.parse(repaired); // Validate that it's now valid
+      self.postMessage({ type: 'repair', success: true, formatted: repaired });
+    } catch (error) {
+      self.postMessage({
+        type: 'repair',
+        success: false,
+        error: "Could not automatically repair: " + error.message
+      });
+    }
   }
 };
+
+function repairJson(json) {
+  // 1. Replace single quotes with double quotes (basic, avoids quotes inside strings)
+  // This is a naive implementation, a better one would use a proper parser
+  let repaired = json
+    // Replace unquoted keys
+    .replace(/([{,]\s*)([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":')
+    // Replace single quotes with double quotes (ignoring escaped ones)
+    .replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, '"$1"')
+    // Remove trailing commas
+    .replace(/,\s*([\]}])/g, '$1');
+    
+  return repaired;
+}
 
 function sortJson(obj, direction) {
   if (Array.isArray(obj)) {
