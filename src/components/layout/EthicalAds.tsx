@@ -1,27 +1,36 @@
-import { onMount, onCleanup } from "solid-js";
+import { onMount } from "solid-js";
 
-// TODO: Replace 'your-publisher-id' with your actual EthicalAds publisher ID
+// IMPORTANT: Replace 'your-publisher-id' with the ID you receive from EthicalAds
 const PUBLISHER_ID = "your-publisher-id"; 
 
 export default function EthicalAds() {
   onMount(() => {
-    // Only inject script if it hasn't been injected yet
+    // 1. Inject the script if not present
     if (!document.querySelector('script[src*="ethicalads.min.js"]')) {
       const script = document.createElement("script");
       script.src = "https://media.ethicalads.io/media/client/ethicalads.min.js";
       script.async = true;
       document.head.appendChild(script);
+    } else {
+      // 2. If script already exists (navigation in SPA), tell it to find new ads
+      // @ts-ignore
+      if (window.ethicalads) {
+        // @ts-ignore
+        window.ethicalads.load();
+      }
     }
   });
 
   return (
-    <div class="my-4 flex justify-center w-full max-w-full overflow-hidden">
+    <div class="py-8 flex justify-center w-full bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-800">
       <div 
-        class="horizontal" 
+        class="horizontal dark adaptive" 
         data-ea-publisher={PUBLISHER_ID} 
         data-ea-type="image" 
-        id="ethicalads-container"
+        data-ea-manual="true"
+        id="ethical-ad"
       />
     </div>
   );
 }
+
