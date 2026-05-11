@@ -17,7 +17,9 @@ self.onmessage = (e) => {
     }
   } else if (type === 'format') {
     try {
-      const obj = JSON.parse(data);
+      const jsonStr = data || e.data.json;
+      if (!jsonStr) throw new Error("No JSON data provided");
+      const obj = JSON.parse(jsonStr);
       const formatted = JSON.stringify(obj, null, 2);
       self.postMessage({ type: 'format', success: true, formatted, _reqType: e.data._reqType });
     } catch (error) {
@@ -25,7 +27,23 @@ self.onmessage = (e) => {
         type: 'format',
         success: false,
         error: error.message,
-        position: getErrorPosition(error, data),
+        position: getErrorPosition(error, data || e.data.json),
+        _reqType: e.data._reqType
+      });
+    }
+  } else if (type === 'minify') {
+    try {
+      const jsonStr = data || e.data.json;
+      if (!jsonStr) throw new Error("No JSON data provided");
+      const obj = JSON.parse(jsonStr);
+      const formatted = JSON.stringify(obj);
+      self.postMessage({ type: 'format', success: true, formatted, _reqType: e.data._reqType });
+    } catch (error) {
+      self.postMessage({
+        type: 'format',
+        success: false,
+        error: error.message,
+        position: getErrorPosition(error, data || e.data.json),
         _reqType: e.data._reqType
       });
     }

@@ -1,7 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { isDarkMode } from "~/lib/theme";
 import { SearchIcon, UndoIcon, RedoIcon, TextIcon, TreeIcon, TableIcon } from "../SvgIcons";
-import SvelteJsonEditor from "./SvelteJsonEditor";
+import PretextEditor from "./pretext-editor/PretextEditor";
 
 type ViewMode = "text" | "tree" | "table";
 
@@ -10,6 +10,10 @@ interface EditorPanelProps {
   onChange: (value: string) => void;
   onPaste?: (text: string) => void;
   cursorInfo?: { line: number; col: number };
+  onFormat?: () => void;
+  onMinify?: () => void;
+  onToggleDiff?: () => void;
+  isDiffMode?: boolean;
   diffHighlights?: { added: number[], removed: number[] };
 }
 
@@ -68,12 +72,34 @@ export default function EditorPanel(props: EditorPanelProps) {
             <RedoIcon />
           </button>
         </div>
+
+        {/* Action Buttons */}
+        <div class="flex items-center gap-1.5 ml-auto mr-2">
+          <button 
+            onClick={() => props.onFormat?.()}
+            class="px-3 py-1 text-xs font-bold bg-indigo-600/10 hover:bg-indigo-600 text-indigo-600 hover:text-white border border-indigo-600/20 rounded-lg transition-all duration-200"
+          >
+            Format
+          </button>
+          <button 
+            onClick={() => props.onMinify?.()}
+            class="px-3 py-1 text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg transition-all duration-200"
+          >
+            Minify
+          </button>
+          <button 
+            onClick={() => props.onToggleDiff?.()}
+            class={`px-3 py-1 text-xs font-bold border rounded-lg transition-all duration-200 ${props.isDiffMode ? 'bg-amber-500 text-white border-amber-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}
+          >
+            Diff
+          </button>
+        </div>
       </div>
 
       {/* Editor content */}
       <div class="flex-1 min-h-0 relative">
         <div class="absolute inset-0">
-          <SvelteJsonEditor 
+          <PretextEditor 
             value={props.value} 
             onChange={props.onChange} 
             mode={viewMode()} 

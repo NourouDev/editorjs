@@ -1,7 +1,7 @@
 import { createSignal, Show, For, createMemo, onCleanup, onMount } from "solid-js";
 import { createJsonWorker } from "~/lib/jsonWorker";
 import { CopyIcon, CheckIcon, XIcon } from "~/components/SvgIcons";
-import SvelteJsonEditor from "../editor/SvelteJsonEditor";
+import PretextEditor from "../editor/pretext-editor/PretextEditor";
 import { isDarkMode } from "~/lib/theme";
 
 type ViewMode = "split" | "diff";
@@ -256,8 +256,8 @@ export default function JsonFormatter() {
               </span>
               <span class="text-xs text-slate-400 dark:text-slate-500 font-mono">{originalInput().length} chars</span>
             </div>
-            <div class="h-[500px] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-              <SvelteJsonEditor value={originalInput()} onChange={setOriginalInput} mode="text" />
+            <div class="h-[500px] rounded-b-xl overflow-hidden border border-slate-200 dark:border-slate-800 border-t-0">
+              <PretextEditor value={originalInput()} onChange={setOriginalInput} mode="text" />
             </div>
           </div>
 
@@ -270,9 +270,8 @@ export default function JsonFormatter() {
               <span class="text-xs text-slate-400 dark:text-slate-500 font-mono">{formattedOutput().length} chars</span>
             </div>
             <div class="h-[450px] rounded-b-xl overflow-hidden border border-slate-200 dark:border-slate-800 border-t-0">
-              <SvelteJsonEditor
+              <PretextEditor
                 value={formattedOutput() || "// Click Format"}
-                readOnly
                 mode="text"
               />
             </div>
@@ -302,23 +301,23 @@ export default function JsonFormatter() {
                 </div>
               }
             >
-              <div class="overflow-auto max-h-[450px] font-mono text-sm">
-                <table class="w-full">
-                  <tbody>
+              <div class="overflow-auto max-h-[500px] font-mono text-sm bg-slate-50 dark:bg-[#0b1120]">
+                <table class="w-full border-collapse">
+                  <tbody style={{ "line-height": "22px" }}>
                     <For each={diffLines()}>
                       {(line) => (
-                        <tr class={line.type === "added" ? "bg-emerald-50 dark:bg-emerald-950/40" : line.type === "removed" ? "bg-red-50 dark:bg-red-950/40" : ""}>
-                          <td class="px-3 py-0.5 text-right text-slate-400 dark:text-slate-600 select-none w-10 text-xs border-r border-slate-200 dark:border-slate-800">
+                        <tr class={`group border-b border-transparent hover:border-slate-100 dark:hover:border-slate-800/50 ${line.type === "added" ? "bg-emerald-50/50 dark:bg-emerald-950/20" : line.type === "removed" ? "bg-red-50/50 dark:bg-red-950/20" : ""}`}>
+                          <td class="px-3 py-0 text-right text-slate-400 dark:text-slate-600 select-none w-10 text-[10px] border-r border-slate-200 dark:border-slate-800 bg-slate-100/30 dark:bg-slate-900/30">
                             {line.type !== "added" ? line.oldLineNum : ""}
                           </td>
-                          <td class="px-3 py-0.5 text-right text-slate-400 dark:text-slate-600 select-none w-10 text-xs border-r border-slate-200 dark:border-slate-800">
+                          <td class="px-3 py-0 text-right text-slate-400 dark:text-slate-600 select-none w-10 text-[10px] border-r border-slate-200 dark:border-slate-800 bg-slate-100/30 dark:bg-slate-900/30">
                             {line.type !== "removed" ? line.newLineNum : ""}
                           </td>
-                          <td class={`px-2 py-0.5 select-none w-6 text-center font-bold ${line.type === "added" ? "text-emerald-600 dark:text-emerald-400" : line.type === "removed" ? "text-red-600 dark:text-red-400" : "text-slate-300 dark:text-slate-700"}`}>
-                            {line.type === "added" ? "+" : line.type === "removed" ? "-" : " "}
+                          <td class={`px-2 py-0 select-none w-6 text-center font-bold ${line.type === "added" ? "text-emerald-500" : line.type === "removed" ? "text-red-500" : "text-slate-300 dark:text-slate-700"}`}>
+                            {line.type === "added" ? "+" : line.type === "removed" ? "-" : ""}
                           </td>
-                          <td class={`px-3 py-0.5 whitespace-pre ${line.type === "added" ? "text-emerald-700 dark:text-emerald-300" : line.type === "removed" ? "text-red-700 dark:text-red-300" : "text-slate-600 dark:text-slate-400"}`}>
-                            {line.content}
+                          <td class={`px-4 py-0 whitespace-pre font-mono text-[13px] ${line.type === "added" ? "text-emerald-700 dark:text-emerald-300" : line.type === "removed" ? "text-red-700 dark:text-red-300" : "text-slate-600 dark:text-slate-400"}`}>
+                            {line.content || " "}
                           </td>
                         </tr>
                       )}

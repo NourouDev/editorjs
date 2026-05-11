@@ -1,7 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { isDarkMode } from "~/lib/theme";
 import { TextIcon, TreeIcon, TableIcon } from "../SvgIcons";
-import SvelteJsonEditor from "./SvelteJsonEditor";
+import PretextEditor from "./pretext-editor/PretextEditor";
 
 type ViewMode = "text" | "tree" | "table";
 
@@ -88,11 +88,10 @@ export default function OutputPanel(props: OutputPanelProps) {
           }
         >
           <div class="absolute inset-0">
-            <SvelteJsonEditor 
+            <PretextEditor 
               value={props.value} 
               onChange={props.onChange} 
               mode={viewMode()} 
-              readOnly={true}
             />
           </div>
         </Show>

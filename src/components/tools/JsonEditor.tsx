@@ -1,276 +1,362 @@
-import { createSignal, createMemo, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, createMemo, onCleanup, onMount, Show, For } from "solid-js";
 import { createJsonWorker } from "~/lib/jsonWorker";
-import EditorPanel from "../editor/EditorPanel";
-import OutputPanel from "../editor/OutputPanel";
 import ResizableSplitter from "../editor/ResizableSplitter";
-import { 
-  CheckIcon, XIcon, FileIcon, FolderOpenIcon, SaveIcon, CopyIcon, 
+import PretextEditor from "../editor/pretext-editor/PretextEditor";
+import SideBySideDiff from "../editor/pretext-editor/SideBySideDiff";
+import {
+  CheckIcon, XIcon, FileIcon, FolderOpenIcon, SaveIcon, CopyIcon,
   FullScreenIcon, CompareIcon
 } from "../SvgIcons";
 
+// ────────────────────────────────────────────────────────────
+// Diff algorithm (LCS-based)
+// ────────────────────────────────────────────────────────────
+interface DiffLine {
+  type: "added" | "removed" | "unchanged";
+  content: string;
+  oldLineNum?: number;
+  newLineNum?: number;
+}
+
+function computeDiff(oldText: string, newText: string): DiffLine[] {
+  const a = oldText.split("\n");
+  const b = newText.split("\n");
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  const result: DiffLine[] = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i-1] === b[j-1]) {
+      result.push({ type: "unchanged", content: a[i-1], oldLineNum: i, newLineNum: j });
+      i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+      result.push({ type: "added", content: b[j-1], newLineNum: j });
+      j--;
+    } else {
+      result.push({ type: "removed", content: a[i-1], oldLineNum: i });
+      i--;
+    }
+  }
+  return result.reverse();
+}
+
+// ────────────────────────────────────────────────────────────
+// Panel Header — toolbar per panel
+// ────────────────────────────────────────────────────────────
+type ViewMode = "text" | "tree" | "table";
+
+interface PanelHeaderProps {
+  label: string;
+  side: "left" | "right";
+  viewMode: ViewMode;
+  onViewMode: (m: ViewMode) => void;
+  onFormat: () => void;
+  onMinify: () => void;
+  onCopyTo: () => void; // copy to other panel
+  charCount: number;
+}
+
+function PanelHeader(props: PanelHeaderProps) {
+  const modeBtnCls = (m: ViewMode) =>
+    `px-2.5 py-1 text-[11px] font-semibold rounded transition-all duration-150 ${
+      props.viewMode === m
+        ? "bg-indigo-600 text-white shadow shadow-indigo-500/25"
+        : "text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+    }`;
+  const actionCls = "px-2.5 py-1 text-[11px] font-semibold rounded border transition-all duration-150 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400";
+
+  return (
+    <div class="flex items-center gap-2 px-2 py-1.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 flex-shrink-0">
+      {/* Label */}
+      <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider w-10">
+        {props.label}
+      </span>
+
+      {/* View modes */}
+      <div class="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-md">
+        <button class={modeBtnCls("text")} onClick={() => props.onViewMode("text")}>Text</button>
+        <button class={modeBtnCls("tree")} onClick={() => props.onViewMode("tree")}>Tree</button>
+        <button class={modeBtnCls("table")} onClick={() => props.onViewMode("table")}>Table</button>
+      </div>
+
+      {/* Actions */}
+      <div class="flex items-center gap-1">
+        <button class={actionCls} onClick={props.onFormat} title="Format (pretty-print)">Format</button>
+        <button class={actionCls} onClick={props.onMinify} title="Minify (compact)">Minify</button>
+      </div>
+
+      {/* Copy to other panel */}
+      <button
+        class="ml-auto flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all"
+        onClick={props.onCopyTo}
+        title={props.side === "left" ? "Copy to Right →" : "← Copy to Left"}
+      >
+        {props.side === "left" ? "→ Copy" : "← Copy"}
+      </button>
+
+      {/* Char count */}
+      <span class="text-[10px] text-slate-400 dark:text-slate-600 font-mono ml-1">
+        {props.charCount.toLocaleString()}
+      </span>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Main JsonEditor
+// ────────────────────────────────────────────────────────────
+const defaultJson = '{\n  "name": "ZeroJSON",\n  "version": "1.0.0",\n  "features": ["validate", "format", "diff"]\n}';
+
 export default function JsonEditor() {
-const defaultJson = '{\n  "name": "ZeroJSON",\n  "version": "1.0.0",\n  "features": ["validate","format","diff"]\n}';
-  const [leftInput, setLeftInput] = createSignal(defaultJson);
-  const [rightInput, setRightInput] = createSignal(defaultJson);
-  const [leftWidth, setLeftWidth] = createSignal(50); // percentage
-  const [status, setStatus] = createSignal<{ type: "idle" | "success" | "error"; message: string }>({ type: "idle", message: "Ready" });
-  const [isProcessing, setIsProcessing] = createSignal(false);
+  const [leftInput,  setLeftInput]  = createSignal(defaultJson);
+  const [rightInput, setRightInput] = createSignal("");
+  const [leftViewMode,  setLeftViewMode]  = createSignal<ViewMode>("text");
+  const [rightViewMode, setRightViewMode] = createSignal<ViewMode>("text");
+  const [leftWidth, setLeftWidth] = createSignal(50);
   const [isDiffMode, setIsDiffMode] = createSignal(false);
   const [isFullscreen, setIsFullscreen] = createSignal(false);
-  const [outputViewMode, setOutputViewMode] = createSignal<"text" | "tree" | "table">("text");
- 
-
+  const [statusMsg, setStatusMsg] = createSignal<{ ok: boolean; text: string } | null>(null);
 
   let worker: Worker | undefined;
   let containerRef!: HTMLDivElement;
 
+  const showStatus = (ok: boolean, text: string) => {
+    setStatusMsg({ ok, text });
+    setTimeout(() => setStatusMsg(null), 3500);
+  };
+
   onMount(() => {
     worker = createJsonWorker();
-    worker.onmessage = (event) => {
-      const { type, success, error, position, formatted, _reqType } = event.data;
-      setIsProcessing(false);
-
+    worker.onmessage = (ev) => {
+      const { success, formatted, error, _reqType } = ev.data;
       if (success) {
-        if (_reqType === "format_left" || _reqType === "sort_left") setLeftInput(formatted);
-        if (_reqType === "format_right" || _reqType === "sort_right") setRightInput(formatted);
-        setStatus({ type: "success", message: type === "sort" ? "Sorted" : "Transformed" });
+        if (_reqType === "left")  setLeftInput(formatted);
+        if (_reqType === "right") setRightInput(formatted);
+        showStatus(true, _reqType === "left" ? "Left panel formatted" : "Right panel formatted");
       } else {
-        let msg = error;
-        if (position && !error.toLowerCase().includes("line")) {
-          msg += ` at line ${position.line}, col ${position.column}`;
-        }
-        setStatus({ type: "error", message: msg });
+        showStatus(false, error);
       }
     };
-
-    const onFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-
+    const fsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", fsChange);
     onCleanup(() => {
       worker?.terminate();
-      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      document.removeEventListener("fullscreenchange", fsChange);
     });
   });
 
-  const handleResize = (deltaX: number) => {
-    const containerWidth = window.innerWidth;
-    const deltaPct = (deltaX / containerWidth) * 100;
-    setLeftWidth((prev) => {
-      const next = prev + deltaPct;
-      if (next < 10) return 0;
-      if (next > 90) return 100;
-      return Math.min(Math.max(next, 0), 100);
-    });
+  // ── Per-panel actions ──
+  const formatPanel = (side: "left" | "right") => {
+    const data = side === "left" ? leftInput() : rightInput();
+    if (!data.trim()) return;
+    worker?.postMessage({ type: "format", data, _reqType: side });
   };
 
-  const showStatus = (type: "idle" | "success" | "error", msg: string) => {
-    setStatus({ type, message: msg });
-    if (type === "success") {
-      setTimeout(() => setStatus({ type: "idle", message: "Ready" }), 3000);
-    }
+  const minifyPanel = (side: "left" | "right") => {
+    const data = side === "left" ? leftInput() : rightInput();
+    if (!data.trim()) return;
+    worker?.postMessage({ type: "minify", data, _reqType: side });
   };
 
-
-
-  const handleToggleDiff = () => {
-    setIsDiffMode(!isDiffMode());
-    if (!isDiffMode()) {
-       showStatus("idle", "Ready");
-    } else {
-       showStatus("success", "Diff mode enabled");
-    }
-  };
-
-  // --- Top Toolbar Actions ---
-  const handleNew = () => {
-    setLeftInput('');
-    setRightInput('');
-    showStatus("success", "Cleared");
-  };
-
+  // ── Global actions ──
   const handleOpen = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json,application/json';
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json";
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (evt) => {
-        const content = evt.target?.result as string;
+      reader.onload = (ev) => {
+        const content = ev.target?.result as string;
         setLeftInput(content);
-        showStatus("success", "File opened");
+        showStatus(true, `Opened ${file.name}`);
       };
       reader.readAsText(file);
     };
     input.click();
   };
 
-  const handleSave = () => {
-    // Save the output if available, else original
-    const contentToSave = rightInput().trim() ? rightInput() : leftInput();
-    const blob = new Blob([contentToSave], { type: "application/json" });
+  const handleSave = (side: "left" | "right") => {
+    const content = side === "left" ? leftInput() : rightInput();
+    if (!content.trim()) return;
+    const blob = new Blob([content], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = "data.json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showStatus("success", "File saved");
+    a.href = url; a.download = "data.json";
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    showStatus(true, "Saved");
   };
 
-  const handleCopy = () => {
-    const contentToCopy = rightInput().trim() ? rightInput() : leftInput();
-    navigator.clipboard.writeText(contentToCopy);
-    showStatus("success", "Copied to clipboard");
-  };
-  
-  const handlePaste = (text: string) => {
-    try {
-      // Try to parse to see if it's valid JSON
-      const parsed = JSON.parse(text);
-      setRightInput(JSON.stringify(parsed, null, 2));
-      setOutputViewMode("tree");
-      showStatus("success", "Pasted and loaded tree view");
-    } catch (err) {
-      // Not valid JSON, just let it be pasted normally in the editor
-    }
+  const handleCopyText = (side: "left" | "right") => {
+    const content = side === "left" ? leftInput() : rightInput();
+    navigator.clipboard.writeText(content);
+    showStatus(true, "Copied to clipboard");
   };
 
   const handleFullScreen = () => {
-    if (!document.fullscreenElement) {
-      containerRef.requestFullscreen().catch(err => {
-        showStatus("error", `Fullscreen error: ${err.message}`);
-      });
-    } else {
-      document.exitFullscreen();
-    }
+    if (!document.fullscreenElement) containerRef.requestFullscreen();
+    else document.exitFullscreen();
   };
 
-  const actionBtnClass = "flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 shadow-sm";
-  const iconBtnClass = "p-2 rounded-xl transition-all duration-200 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm shadow-transparent hover:shadow-slate-200/50 dark:hover:shadow-indigo-900/20";
+  const handleResize = (deltaX: number) => {
+    setLeftWidth((prev) => Math.min(90, Math.max(10, prev + (deltaX / window.innerWidth) * 100)));
+  };
+
+  // ── Diff ──
+  const diffLines = createMemo(() => {
+    if (!isDiffMode()) return [];
+    return computeDiff(leftInput(), rightInput());
+  });
+  const diffStats = createMemo(() => ({
+    added: diffLines().filter(l => l.type === "added").length,
+    removed: diffLines().filter(l => l.type === "removed").length,
+  }));
+
+  // ── UI class helpers ──
+  const toolbarBtnCls = "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm";
+  const iconBtnCls = "p-1.5 rounded-lg border border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200 transition-all";
 
   return (
-    <div ref={containerRef} class={`flex flex-col w-full ${isFullscreen() ? 'h-screen w-screen fixed inset-0 z-50 bg-slate-50 dark:bg-[#0b1120] p-4 m-0' : 'h-[calc(100vh-67px)]'}`}>
-      
-      {/* Top Global Toolbar */}
-      <div class="flex flex-wrap items-center justify-between px-4 py-2 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm gap-2">
-        <div class="flex items-center gap-1">
-          <button class={actionBtnClass} onClick={handleNew} title="Clear Editor">
-            <FileIcon /> <span class="hidden sm:inline">New</span>
+    <div
+      ref={containerRef}
+      class={`flex flex-col w-full bg-slate-50 dark:bg-[#0b1120] ${isFullscreen() ? "h-screen fixed inset-0 z-50" : "h-[calc(100vh-67px)]"}`}
+    >
+      {/* ── Global Toolbar ── */}
+      <div class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm flex-shrink-0">
+        {/* Left side */}
+        <div class="flex items-center gap-1.5">
+          <button class={toolbarBtnCls} onClick={handleOpen} title="Open JSON file">
+            <FolderOpenIcon /> Open
           </button>
-          
-          <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
-          
-          <button class={actionBtnClass} onClick={handleOpen} title="Open JSON File">
-            <FolderOpenIcon /> <span class="hidden sm:inline">Open</span>
-          </button>
-        </div>
-
-        <div class="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/50 p-1 rounded-lg border border-slate-100 dark:border-slate-700/50">
-          <button 
-            class={`${iconBtnClass} flex items-center gap-1.5 px-2.5 ${isDiffMode() ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-700 shadow-sm border border-indigo-100 dark:border-indigo-900/50' : 'border border-transparent'}`} 
-            onClick={handleToggleDiff} 
-            title="Compare Original vs Output"
-          >
-            <CompareIcon /> 
-            <span class="text-xs font-semibold">{isDiffMode() ? 'DIFF ON' : 'DIFF OFF'}</span>
+          <button class={toolbarBtnCls} onClick={() => { setLeftInput(""); setRightInput(""); }} title="Clear both panels">
+            <FileIcon /> New
           </button>
         </div>
 
-        <div class="flex items-center gap-1">
-          <div class="flex items-center gap-2 mr-2">
-            <Show when={status().type === "success"}>
-              <span class="text-emerald-500"><CheckIcon /></span>
-            </Show>
-            <Show when={status().type === "error"}>
-              <span class="text-red-500"><XIcon /></span>
-            </Show>
-            <span class={`text-xs font-medium max-w-[150px] truncate ${status().type === "success" ? "text-emerald-600 dark:text-emerald-400" : status().type === "error" ? "text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400"}`}>
-              {status().message}
-            </span>
+        <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
+
+        {/* Save / Copy (active panel hint) */}
+        <div class="flex items-center gap-1.5">
+          <button class={toolbarBtnCls} onClick={() => handleSave("left")} title="Download left panel">
+            <SaveIcon /> Save L
+          </button>
+          <button class={toolbarBtnCls} onClick={() => handleSave("right")} title="Download right panel">
+            <SaveIcon /> Save R
+          </button>
+        </div>
+
+        <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
+
+        {/* Diff toggle */}
+        <button
+          class={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all shadow-sm ${
+            isDiffMode()
+              ? "bg-amber-500 text-white border-amber-600"
+              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-amber-400 hover:text-amber-600"
+          }`}
+          onClick={() => setIsDiffMode(!isDiffMode())}
+        >
+          <CompareIcon />
+          {isDiffMode() ? "Diff ON" : "Diff"}
+          <Show when={isDiffMode()}>
+            <span class="ml-1 text-emerald-200">+{diffStats().added}</span>
+            <span class="text-red-200">-{diffStats().removed}</span>
+          </Show>
+        </button>
+
+        {/* Status */}
+        <Show when={statusMsg()}>
+          <div class={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium ml-2 ${
+            statusMsg()!.ok
+              ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+              : "bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800"
+          }`}>
+            {statusMsg()!.ok ? <CheckIcon /> : <XIcon />}
+            <span class="max-w-[240px] truncate">{statusMsg()!.text}</span>
           </div>
+        </Show>
 
-          <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
-          
-          <button class={actionBtnClass} onClick={handleSave} title="Download JSON">
-            <SaveIcon /> <span class="hidden sm:inline">Download</span>
-          </button>
-          <button class={actionBtnClass} onClick={handleCopy} title="Copy Output">
-            <CopyIcon /> <span class="hidden sm:inline">Copy</span>
-          </button>
-          
-          <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
-          
-          <button class="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" onClick={handleFullScreen} title={isFullscreen() ? "Exit Fullscreen" : "Fullscreen"}>
-            <FullScreenIcon />
-          </button>
+        <div class="flex items-center gap-1 ml-auto">
+          <button class={iconBtnCls} onClick={() => handleCopyText("left")} title="Copy left to clipboard"><CopyIcon /></button>
+          <button class={iconBtnCls} onClick={() => handleCopyText("right")} title="Copy right to clipboard"><CopyIcon /></button>
+          <button class={iconBtnCls} onClick={handleFullScreen} title={isFullscreen() ? "Exit fullscreen" : "Fullscreen"}><FullScreenIcon /></button>
         </div>
       </div>
 
-      {/* Main Layout Area */}
-      <div class="flex flex-1 min-h-0 relative bg-slate-50 dark:bg-[#0b1120] border-b border-slate-200 dark:border-slate-800/60">
-          {/* Split Pane Mode */}
-          {/* Left Panel */}
-          <Show when={leftWidth() > 0}>
-            <div style={{ width: `calc(${leftWidth()}%)` }} class="h-full flex-shrink-0 transition-all duration-0">
-              <EditorPanel 
-                value={leftInput()} 
-                onChange={setLeftInput}
-                onPaste={handlePaste}
+      {/* ── Diff Banner ── */}
+      <Show when={isDiffMode()}>
+        <div class="flex items-center gap-4 px-4 py-2 bg-amber-50 dark:bg-amber-900/10 border-b border-amber-200 dark:border-amber-800/40 text-xs font-medium text-amber-700 dark:text-amber-400 flex-shrink-0">
+          <span class="font-bold uppercase tracking-wider">Diff Mode</span>
+          <span>Left vs Right panel comparison</span>
+          <span class="ml-auto flex gap-3">
+            <span class="text-emerald-600 dark:text-emerald-400">+{diffStats().added} added</span>
+            <span class="text-red-600 dark:text-red-400">-{diffStats().removed} removed</span>
+          </span>
+        </div>
+      </Show>
+
+      {/* ── Editor Area: Diff mode takes full width, normal mode = side by side ── */}
+      <Show
+        when={isDiffMode()}
+        fallback={
+          <div class="flex flex-1 min-h-0 overflow-hidden">
+            {/* LEFT PANEL */}
+            <div style={{ width: `${leftWidth()}%` }} class="flex flex-col h-full min-w-0 flex-shrink-0">
+              <PanelHeader
+                label="Left"
+                side="left"
+                viewMode={leftViewMode()}
+                onViewMode={setLeftViewMode}
+                onFormat={() => formatPanel("left")}
+                onMinify={() => minifyPanel("left")}
+                onCopyTo={() => setRightInput(leftInput())}
+                charCount={leftInput().length}
               />
+              <div class="flex-1 min-h-0 overflow-hidden">
+                <PretextEditor
+                  value={leftInput()}
+                  onChange={setLeftInput}
+                  mode={leftViewMode()}
+                />
+              </div>
             </div>
-          </Show>
 
-          {/* Button to restore Left if collapsed */}
-          <Show when={leftWidth() === 0}>
-            <button 
-              class="absolute left-2 top-1/2 transform -translate-y-1/2 z-20 bg-white dark:bg-slate-800 p-2 rounded-r-lg shadow-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center"
-              onClick={() => setLeftWidth(50)}
-              title="Show Left Panel"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
-              </svg>
-            </button>
-          </Show>
+            {/* SPLITTER */}
+            <ResizableSplitter onResize={handleResize} />
 
-          {/* Spacer / Splitter */}
-          <Show when={leftWidth() > 0 && leftWidth() < 100}>
-            <div class="relative w-1 px-1 z-10 h-full group cursor-col-resize">
-              <ResizableSplitter onResize={handleResize} />
-            </div>
-          </Show>
-
-          {/* Button to restore Right if collapsed */}
-          <Show when={leftWidth() === 100}>
-            <button 
-              class="absolute right-2 top-1/2 transform -translate-y-1/2 z-20 bg-white dark:bg-slate-800 p-2 rounded-l-lg shadow-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center"
-              onClick={() => setLeftWidth(50)}
-              title="Show Right Panel"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 19l-7-7 7-7M19 19l-7-7 7-7"/>
-              </svg>
-            </button>
-          </Show>
-
-          {/* Right Panel */}
-          <Show when={leftWidth() < 100}>
-            <div class="flex-1 h-full min-w-0">
-              <OutputPanel 
-                value={rightInput()} 
-                onChange={setRightInput} 
-                viewMode={outputViewMode()}
-                onViewModeChange={setOutputViewMode}
+            {/* RIGHT PANEL */}
+            <div class="flex flex-col h-full flex-1 min-w-0">
+              <PanelHeader
+                label="Right"
+                side="right"
+                viewMode={rightViewMode()}
+                onViewMode={setRightViewMode}
+                onFormat={() => formatPanel("right")}
+                onMinify={() => minifyPanel("right")}
+                onCopyTo={() => setLeftInput(rightInput())}
+                charCount={rightInput().length}
               />
+              <div class="flex-1 min-h-0 overflow-hidden">
+                <PretextEditor
+                  value={rightInput()}
+                  onChange={setRightInput}
+                  mode={rightViewMode()}
+                />
+              </div>
             </div>
-          </Show>
-      </div>
+          </div>
+        }
+      >
+        {/* DIFF MODE: full-width side-by-side view */}
+        <div class="flex-1 min-h-0 overflow-hidden">
+          <SideBySideDiff lines={diffLines()} />
+        </div>
+      </Show>
     </div>
   );
 }
