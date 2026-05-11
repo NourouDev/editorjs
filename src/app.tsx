@@ -35,10 +35,10 @@ export default function App() {
           <Meta name="description" content="Convert JSON to TypeScript, Zod, Go, Rust, SQL, and CSV directly in your browser. 0 network requests, 100% private and offline-capable." />
           <Meta property="og:title" content="ZeroJSON Tools - 100% Secure JSON Converter" />
           <Meta property="og:description" content="Convert massive JSON files in your browser. 0 network requests. Ultra-fast performance." />
-          <Meta property="og:url" content="https://zero-json.duckdns.org/" />
+          <Meta property="og:url" content="https://editorjs.pages.dev/" />
           <Meta property="og:type" content="website" />
           <Meta name="twitter:card" content="summary_large_image" />
-          <Link rel="canonical" href="https://zero-json.duckdns.org/" />
+          <Link rel="canonical" href="https://editorjs.pages.dev/" />
           <div class="min-h-screen flex flex-col bg-[#fafafa] dark:bg-[#0a0e1a] text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
             <nav class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-4 px-6 flex-shrink-0">
               <div class="max-w-7xl mx-auto flex justify-between items-center">
